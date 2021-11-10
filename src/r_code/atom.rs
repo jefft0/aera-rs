@@ -1,4 +1,7 @@
 use std::io::Write;
+//use std::collections::HashMap;
+use crate::core::u_duration::microseconds;
+use crate::core::u_timestamp::from_duration;
 
 /**
  * atom::TraceContext holds the indentation level and other context info
@@ -11,20 +14,10 @@ pub struct TraceContext {
     pub timestamp_data_: u8,
     pub string_data_: u8,
     pub char_count_: u8,
-    pub timestamp_high_: u64, 
+    pub timestamp_high_: i64, 
 }
 
 impl TraceContext {
-    pub fn new() -> Self {
-        TraceContext {
-            members_to_go_: 0,
-            timestamp_data_: 0,
-            string_data_: 0,
-            char_count_: 0,
-            timestamp_high_: 0, 
-        }
-    }
-
     pub fn write_indents(&mut self, out: &mut impl Write) {
         if self.members_to_go_ != 0 {
             out.write_all(b"   ").unwrap();
@@ -33,7 +26,17 @@ impl TraceContext {
     }
 }
 
-
+impl Default for TraceContext {
+    fn default() -> Self {
+        TraceContext {
+            members_to_go_: 0,
+            timestamp_data_: 0,
+            string_data_: 0,
+            char_count_: 0,
+            timestamp_high_: 0, 
+        }
+    }
+}
 
 pub const NIL: u8 = 0x80;
 pub const BOOLEAN_: u8 = 0x81; // Spell with underbar to distinguish from Windows BOOLEAN.
@@ -419,6 +422,159 @@ impl Atom {
     }
 
     // asRawPointer is not used. See RawPointer above.
+
+    pub fn trace(&self, context: &mut TraceContext, out: &mut impl Write) {
+
+        context.write_indents(out);
+        if context.timestamp_data_ != 0 {
+            // Output the timestamp value now. Otherwise, it could be interpreted
+            // as an op code, etc.
+            context.timestamp_data_ -= 1;
+            write!(out, "{}", self.atom_).unwrap();
+      
+            if context.timestamp_data_ == 1 {
+                // Save for the next step.
+                context.timestamp_high_ = self.atom_ as i64;
+            }
+            else {
+                // Imitate Utils::GetTimestamp.
+                let timestamp = from_duration(
+                    microseconds(context.timestamp_high_ << 32 | self.atom_ as i64));
+                /* TODO: Implement
+                out << " " << Utils::RelativeTime(timestamp);
+                */
+            }
+            return;
+        }
+      
+        match self.getDescriptor() {
+            NIL => out.write_all(b"nil").unwrap(),
+            BOOLEAN_ => {
+                out.write_all(b"bl: ").unwrap();
+                out.write_all(if self.asBoolean() { b"true" } else { b"false" }).unwrap();
+            },
+            WILDCARD => out.write_all(b":").unwrap(),
+            T_WILDCARD => out.write_all(b"::").unwrap(),
+            I_PTR => write!(out, "iptr: {}", self.asIndex()).unwrap(),
+            VL_PTR => write!(out, "vlptr: {}", self.asIndex()).unwrap(),
+            R_PTR => write!(out, "rptr: {}", self.asIndex()).unwrap(),
+            IPGM_PTR => write!(out, "ipgm_ptr: {}", self.asIndex()).unwrap(),
+            IN_OBJ_PTR => write!(
+                out, "in_obj_ptr: {} {}", self.asInputIndex(), self.asIndex()).unwrap(),
+            D_IN_OBJ_PTR => write!(
+                out, "d_in_obj_ptr: {} {}", self.asRelativeIndex(), self.asIndex()).unwrap(),
+            OUT_OBJ_PTR => write!(out, "out_obj_ptr: {}", self.asIndex()).unwrap(),
+            VALUE_PTR => write!(out, "value_ptr: {}", self.asIndex()).unwrap(),
+            PROD_PTR => write!(out, "prod_ptr: {}", self.asIndex()).unwrap(),
+            ASSIGN_PTR => write!(
+                out, "assign_ptr: {} {}", self.asAssignmentIndex(), self.asIndex()).unwrap(),
+            CODE_VL_PTR => write!(out, "code_vlptr: {}", self.asIndex()).unwrap(),
+            THIS => out.write_all(b"this").unwrap(),
+            VIEW => out.write_all(b"view").unwrap(),
+            MKS => out.write_all(b"mks").unwrap(),
+            VWS => out.write_all(b"vws").unwrap(),
+            NODE => write!(out, "nid: {}", self.getNodeID()).unwrap(),
+            DEVICE => write!(
+                out, "did: {} {} {}", self.getNodeID(), self.getClassID(),
+                self.getDeviceID()).unwrap(),
+            DEVICE_FUNCTION => write!(
+                out, "fid: {} ({})", self.asOpcode(), GetOpcodeName(self.asOpcode())).unwrap(),
+            C_PTR => {
+                write!(out, "cptr: {}", self.getAtomCount()).unwrap();
+                context.members_to_go_ = self.getAtomCount();
+            },
+            SET => {
+                write!(out, "set: {}", self.getAtomCount()).unwrap();
+                context.members_to_go_ = self.getAtomCount();
+            },
+            OBJECT => {
+                write!(
+                    out, "obj: {} ({}) {}", self.asOpcode(), GetOpcodeName(self.asOpcode()),
+                    self.getAtomCount()).unwrap();
+                context.members_to_go_ = self.getAtomCount();
+            },
+            S_SET => {
+                write!(
+                    out, "s_set: {} ({}) {}", self.asOpcode(), GetOpcodeName(self.asOpcode()),
+                    self.getAtomCount()).unwrap();
+                    context.members_to_go_ = self.getAtomCount();
+            },
+            MARKER => {
+                write!(
+                    out, "mk: {} ({}) {}", self.asOpcode(), GetOpcodeName(self.asOpcode()), 
+                    self.getAtomCount()).unwrap();
+                context.members_to_go_ = self.getAtomCount();
+            },
+            OPERATOR => {
+                write!(
+                    out, "op: {} ({}) {}", self.asOpcode(), GetOpcodeName(self.asOpcode()),
+                    self.getAtomCount()).unwrap();
+                context.members_to_go_ = self.getAtomCount();
+            },
+            STRING => {
+                write!(out, "st: {}", self.getAtomCount()).unwrap();
+                context.members_to_go_ = self.getAtomCount();
+                context.string_data_ = context.members_to_go_;
+                context.char_count_ = (self.atom_ & 0x000000FF) as u8;
+            },
+            TIMESTAMP => {
+                out.write_all(b"us").unwrap();
+                context.members_to_go_ = 2;
+                context.timestamp_data_ = context.members_to_go_;
+            },
+            GROUP => {
+                write!(
+                    out, "grp: {} ({}) {}", self.asOpcode(), GetOpcodeName(self.asOpcode()),
+                    self.getAtomCount()).unwrap();
+                context.members_to_go_ = self.getAtomCount();
+            },
+            INSTANTIATED_PROGRAM
+            | INSTANTIATED_ANTI_PROGRAM
+            | INSTANTIATED_INPUT_LESS_PROGRAM => {
+                write!(
+                    out, "ipgm: {} ({}) {}", self.asOpcode(), GetOpcodeName(self.asOpcode()),
+                    self.getAtomCount()).unwrap();
+                context.members_to_go_ = self.getAtomCount();
+            },
+            COMPOSITE_STATE => {
+                write!(
+                    out, "cst: {} ({}) {}", self.asOpcode(), GetOpcodeName(self.asOpcode()),
+                    self.getAtomCount()).unwrap();
+                context.members_to_go_ = self.getAtomCount();
+            },
+            MODEL => {
+                write!(
+                    out, "mdl: {} ({}) {}", self.asOpcode(), GetOpcodeName(self.asOpcode()),
+                    self.getAtomCount()).unwrap();
+                context.members_to_go_ = self.getAtomCount();
+            },
+            NULL_PROGRAM => write!(
+                out, "null pgm {}", 
+                if self.takesPastInputs() { "all inputs" } else { "new inputs" }).unwrap(),
+            _ => {
+                if context.string_data_ != 0 {      
+                    context.string_data_ -= 1;
+                    let mut s = String::new();
+                    let content = self.atom_.to_le_bytes();
+                    for i in 0..4 {
+                        let have_more = context.char_count_ > 0;
+                        context.char_count_ -= 1;
+                        if have_more {
+                            s.push(content[i] as char);
+                        }
+                        else {
+                            break;
+                        }
+                    }
+                    out.write_all(s.as_bytes()).unwrap();
+                } else if self.isFloat() {
+                    write!(out, "nb: {:e}", self.asFloat()).unwrap();
+                } else {
+                    out.write_all("undef".as_bytes()).unwrap();
+                }
+            }
+        }
+    }
 }
 
 impl Default for Atom {
@@ -427,3 +583,8 @@ impl Default for Atom {
     }
 }
 
+#[allow(non_snake_case)]
+fn GetOpcodeName(_opcode: u16) -> String {
+    // TODO: Implement.
+    String::new()
+}
