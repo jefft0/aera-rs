@@ -1,0 +1,429 @@
+use std::io::Write;
+
+/**
+ * atom::TraceContext holds the indentation level and other context info
+ * for the trace method. Before iterating over Atom objects (which may have
+ * different indentation levels or other details), create an
+ * atom::TraceContext and pass it to Atom::trace.
+ */
+pub struct TraceContext {
+    pub members_to_go_: u8,
+    pub timestamp_data_: u8,
+    pub string_data_: u8,
+    pub char_count_: u8,
+    pub timestamp_high_: u64, 
+}
+
+impl TraceContext {
+    pub fn new() -> Self {
+        TraceContext {
+            members_to_go_: 0,
+            timestamp_data_: 0,
+            string_data_: 0,
+            char_count_: 0,
+            timestamp_high_: 0, 
+        }
+    }
+
+    pub fn write_indents(&mut self, out: &mut impl Write) {
+        if self.members_to_go_ != 0 {
+            out.write_all(b"   ").unwrap();
+            self.members_to_go_ -= 1;
+        }
+    }
+}
+
+
+
+pub const NIL: u8 = 0x80;
+pub const BOOLEAN_: u8 = 0x81; // Spell with underbar to distinguish from Windows BOOLEAN.
+pub const WILDCARD: u8 = 0x82;
+pub const T_WILDCARD: u8 = 0x83;
+pub const I_PTR: u8 = 0x84; // internal pointer.
+pub const R_PTR: u8 = 0x85; // reference pointer.
+pub const VL_PTR: u8 = 0x86; // binding map value pointer.
+pub const IPGM_PTR: u8 = 0x87; // r_exec internal: index of data of a tpl arg held by an ipgm.
+pub const IN_OBJ_PTR: u8 = 0x88; // r_exec internal: index of data held by an input object.
+pub const VALUE_PTR: u8 = 0x89; // r_exec internal: index of data held by the overlay's value array.
+pub const PROD_PTR: u8 = 0x8A; // r_exec internal: index of data held by the overlay's production array.
+pub const OUT_OBJ_PTR: u8 = 0x8B; // r_exec internal: index of data held by a newly produced object.
+pub const D_IN_OBJ_PTR: u8 = 0x8C; // r_exec internal: index of data held by an object referenced by an input object.
+pub const ASSIGN_PTR: u8 = 0x8D; // r_exec internal: index of a hlp variable and to be assigned index of an expression that produces the value.
+pub const CODE_VL_PTR: u8 = 0x8E; // pointer to a value at an index in the same code array.
+pub const THIS: u8 = 0x90; // this pointer.
+pub const VIEW: u8 = 0x91;
+pub const MKS: u8 = 0x92;
+pub const VWS: u8 = 0x93;
+pub const NODE: u8 = 0xA0;
+pub const DEVICE: u8 = 0xA1;
+pub const DEVICE_FUNCTION: u8 = 0xA2;
+pub const C_PTR: u8 = 0xC0; // chain pointer.
+pub const SET: u8 = 0xC1;
+pub const S_SET: u8 = 0xC2; // structured set.
+pub const OBJECT: u8 = 0xC3;
+pub const MARKER: u8 = 0xC4;
+pub const OPERATOR: u8 = 0xC5;
+pub const STRING: u8 = 0xC6;
+pub const TIMESTAMP: u8 = 0xC7;
+pub const GROUP: u8 = 0xC8;
+pub const INSTANTIATED_PROGRAM: u8 = 0xC9;
+pub const INSTANTIATED_CPP_PROGRAM: u8 = 0xCA;
+pub const INSTANTIATED_INPUT_LESS_PROGRAM: u8 = 0xCB;
+pub const INSTANTIATED_ANTI_PROGRAM: u8 = 0xCC;
+pub const COMPOSITE_STATE: u8 = 0xCD;
+pub const MODEL: u8 = 0xCE;
+pub const NULL_PROGRAM: u8 = 0xCF;
+
+pub struct Atom {
+    pub atom_: u32,
+}
+
+#[allow(non_snake_case)]
+impl Atom {
+    pub fn new(a: u32) -> Self {
+        Self { atom_: a }
+    }
+
+    pub fn Float(f: f32) -> Self {
+        let a = f.to_bits();
+        Self::new(a >> 1)
+    }
+
+    pub fn PlusInfinity() -> Self {
+        Self::new(0x3FC00000)
+    }
+
+    pub fn MinusInfinity() -> Self {
+        Self::new(0x7FC00000)
+    }
+
+    pub fn UndefinedFloat() -> Self {
+        Self::new(0xFFFFFFF)
+    }
+
+    pub fn Nil() -> Self {
+        Self::new((NIL as u32) << 24)
+    }
+
+    pub fn Boolean(value: bool) -> Self {
+        Self::new(((BOOLEAN_ as u32) << 24) + (if value { 1 } else { 0 }))
+    }
+
+    pub fn UndefinedBoolean() -> Self {
+        Self::new(0x81FFFFFF)
+    }
+
+    pub fn Wildcard() -> Self { Self::Wildcard_opcode(0x00) }
+ 
+    pub fn Wildcard_opcode(opcode: u16) -> Self {
+        Self::new(((WILDCARD as u32) << 24) + (((opcode as u32) & 0x0FFF) << 8))
+    }
+
+    pub fn TailWildcard() -> Self {
+        Self::new((T_WILDCARD as u32) << 24)
+    }
+
+    pub fn IPointer(index: u16) -> Self {
+        Self::new(((I_PTR as u32) << 24) + ((index as u32) & 0x0FFF))
+    }
+
+    pub fn VLPointer(index: u16) -> Self {
+        Self::new(((VL_PTR as u32) << 24) + ((index as u32) & 0x0FFF))
+    }
+
+    pub fn RPointer(index: u16) -> Self {
+        Self::new(((R_PTR as u32) << 24) + ((index as u32) & 0x0FFF))
+    }
+
+    pub fn IPGMPointer(index: u16) -> Self {
+        Self::new(((IPGM_PTR as u32) << 24) + ((index as u32) & 0x0FFF))
+    }
+
+    pub fn InObjPointer(input_index: u8, index: u16) -> Self {
+        Self::new(((IN_OBJ_PTR as u32) << 24) + ((input_index as u32) << 12) +
+          ((index as u32) & 0x0FFF))
+    }
+
+    pub fn DInObjPointer(relative_index: u8, index: u16) -> Self {
+        Self::new(((D_IN_OBJ_PTR as u32) << 24) + ((relative_index as u32) << 12) +
+          ((index as u32) & 0x0FFF))
+    }
+
+    pub fn OutObjPointer(index: u16) -> Self {
+        Self::new(((OUT_OBJ_PTR as u32) << 24) + ((index as u32) & 0x0FFF))
+    }
+
+    pub fn ValuePointer(index: u16) -> Self {
+        Self::new(((VALUE_PTR as u32) << 24) + ((index as u32) & 0x0FFF))
+    }
+
+    pub fn ProductionPointer(index: u16) -> Self {
+        Self::new(((PROD_PTR as u32) << 24) + ((index as u32) & 0x0FFF))
+    }
+
+    pub fn AssignmentPointer(variable_index: u8, index: u16) -> Self {
+        Self::new(((IPGM_PTR as u32) << 24) + ((variable_index as u32) << 16) +
+          ((index as u32) & 0x0FFF))
+    }
+
+    pub fn CodeVLPointer(index: u16) -> Self { Self::CodeVLPointer_cast_opcode(index, 0x0FFF) }
+
+    pub fn CodeVLPointer_cast_opcode(index: u16, cast_opcode: u16) -> Self {
+        Self::new(((CODE_VL_PTR as u32) << 24) + (((cast_opcode as u32) & 0x0FFF) << 12) +
+          ((index as u32) & 0x0FFF))
+    }
+
+    pub fn This() -> Self {
+        Self::new((THIS as u32) << 24)
+    }
+
+    pub fn View() -> Self {
+        Self::new((VIEW as u32) << 24)
+    }
+
+    pub fn Mks() -> Self {
+        Self::new((MKS as u32) << 24)
+    }
+
+    pub fn Vws() -> Self {
+        Self::new((VWS as u32) << 24)
+    }
+
+    pub fn SSet(opcode: u16, element_count: u8) -> Self {
+        Self::new(((S_SET as u32) << 24) + (((opcode as u32) & 0x0FFF) << 8) +
+          element_count as u32)
+    }
+
+    pub fn Set(element_count: u8) -> Self {
+        Self::new(((SET as u32) << 24) + element_count as u32)
+    }
+
+    pub fn CPointer(element_count: u8) -> Self {
+        Self::new(((C_PTR as u32) << 24) + element_count as u32)
+    }
+
+    pub fn Object(opcode: u16, arity: u8) -> Self {
+        Self::new(((OBJECT as u32) << 24) + (((opcode as u32) & 0x0FFF) << 8) + arity as u32)
+    }
+
+    pub fn Marker(opcode: u16, arity: u8) -> Self {
+        Self::new(((MARKER as u32) << 24) + (((opcode as u32) & 0x0FFF) << 8) + arity as u32)
+    }
+
+    pub fn Operator(opcode: u16, arity: u8) -> Self {
+        Self::new(((OPERATOR as u32) << 24) + (((opcode as u32) & 0x0FFF) << 8) + arity as u32)
+    }
+
+    pub fn Node(node_id: u8) -> Self {
+        Self::new(((NODE as u32) << 24) + ((node_id as u32) << 8))
+    }
+
+    pub fn UndefinedNode() -> Self {
+        Self::new(0xA0FFFFFF)
+    }
+
+    pub fn Device(node_id: u8, class_id: u8, dev_id: u8) -> Self {
+        Self::new(((DEVICE as u32) << 24) + ((node_id as u32) << 16) + ((class_id as u32) << 8) +
+          dev_id as u32)
+    }
+
+    pub fn UndefinedDevice() -> Self {
+        Self::new(0xA1FFFFFF)
+    }
+
+    pub fn DeviceFunction(opcode: u16) -> Self {
+        Self::new(((DEVICE_FUNCTION as u32) << 24) + ((opcode as u32) << 8))
+    }
+
+    pub fn UndefinedDeviceFunction() -> Self {
+        Self::new(0xA2FFFFFF)
+    }
+
+    pub fn String(character_count: u8) -> Self {
+        let mut blocks: u8 = character_count / 4;
+        if character_count % 4 != 0 {
+            blocks += 1;
+        }
+        Self::new(((STRING as u32) << 24) + ((blocks as u32) << 8) + character_count as u32)
+    }
+
+    pub fn UndefinedString() -> Self {
+        Self::new(0xC6FFFFFF)
+    }
+
+    pub fn Timestamp() -> Self {
+        Self::new((TIMESTAMP as u32) << 24)
+    }
+
+    pub fn UndefinedTimestamp() -> Self {
+        Self::new(0xC7FFFFFF)
+    }
+
+    pub fn InstantiatedProgram(opcode: u16, arity: u8) -> Self {
+        Self::new(((INSTANTIATED_PROGRAM as u32) << 24) + (((opcode as u32) & 0x0FFF) << 8) +
+          arity as u32)
+    }
+
+    pub fn Group(opcode: u16, arity: u8) -> Self {
+        Self::new(((GROUP as u32) << 24) + (((opcode as u32) & 0x0FFF) << 8) + arity as u32)
+    }
+
+    pub fn InstantiatedCPPProgram(opcode: u16, arity: u8) -> Self {
+        Self::new(((INSTANTIATED_CPP_PROGRAM as u32) << 24) + (((opcode as u32) & 0x0FFF) << 8) +
+          arity as u32)
+    }
+
+    pub fn InstantiatedAntiProgram(opcode: u16, arity: u8) -> Self {
+        Self::new(((INSTANTIATED_ANTI_PROGRAM as u32) << 24) + (((opcode as u32) & 0x0FFF) << 8) +
+          arity as u32)
+    }
+
+    pub fn InstantiatedInputLessProgram(opcode: u16, arity: u8) -> Self {
+        Self::new(((INSTANTIATED_INPUT_LESS_PROGRAM as u32) << 24) +
+          (((opcode as u32) & 0x0FFF) << 8) + arity as u32)
+    }
+
+    pub fn CompositeState(opcode: u16, arity: u8) -> Self {
+        Self::new(((COMPOSITE_STATE as u32) << 24) + (((opcode as u32) & 0x0FFF) << 8) +
+          arity as u32)
+    }
+
+    pub fn Model(opcode: u16, arity: u8) -> Self {
+        Self::new(((MODEL as u32) << 24) + (((opcode as u32) & 0x0FFF) << 8) + arity as u32)
+    }
+
+    pub fn NullProgram(take_past_inputs: bool) -> Self {
+        Self::new(((NULL_PROGRAM as u32) << 24) + (if take_past_inputs { 1 } else { 0 }))
+    }
+
+    /*
+    // RawPointer is not used. In any case, only define it for ARCH_32. If we want to
+    // define it for ARCH_64, we need to change the byte code to use two uint32 code elements.
+    pub fn RawPointer(pointer) -> Self {
+        Self::new(pointer)
+    }
+    */
+
+    // decoders
+
+    pub fn isUndefined(&self) -> bool {
+        self.atom_ == 0xFFFFFFFF
+    }
+
+    pub fn getDescriptor(&self) -> u8 {
+        (self.atom_ >> 24) as u8
+    }
+
+    pub fn isStructural(&self) -> bool {
+        (self.atom_ & 0xC0000000) == 0xC0000000 || (self.atom_ & 0xD0000000) == 0xD0000000
+    }
+
+    pub fn isFloat(&self) -> bool {
+        (self.atom_ >> 31) == 0
+    }
+
+    // returns true for all undefined values.
+    pub fn readsAsNil(&self) -> bool {
+        self.atom_ == 0x80000000 ||
+        self.atom_ == 0x3FFFFFFF ||
+        self.atom_ == 0x81FFFFFF ||
+        self.atom_ == 0xC1000000 ||
+        self.atom_ == 0xA0FFFFFF ||
+        self.atom_ == 0xA1FFFFFF ||
+        self.atom_ == 0xA2FFFFFF ||
+        self.atom_ == 0xC6FFFFFF
+    }
+
+    pub fn asFloat(&self) -> f32 {
+        let _f = self.atom_ << 1;
+        f32::from_bits(_f)
+    }
+
+    pub fn asBoolean(&self) -> bool {
+        if self.atom_ & 0x000000FF != 0 { true } else { false }
+    }
+
+    pub fn isBooleanTrue(&self) -> bool { self.getDescriptor() == BOOLEAN_ && self.asBoolean() }
+
+    pub fn isBooleanFalse(&self) -> bool { self.getDescriptor() == BOOLEAN_ && !self.asBoolean() }
+
+    // applicable to internal, view, reference, and value pointers.
+    pub fn asIndex(&self) -> u16 {
+        (self.atom_ & 0x00000FFF) as u16
+    }
+
+    // applicable to IN_OBJ_PTR.
+    pub fn asInputIndex(&self) -> u8 {
+        ((self.atom_ & 0x000FF000) >> 12) as u8
+    }
+
+    // applicable to D_IN_OBJ_PTR.
+    pub fn asRelativeIndex(&self) -> u8 {
+        ((self.atom_ & 0x000FF000) >> 12) as u8
+    }
+
+    pub fn asOpcode(&self) -> u16 {
+        ((self.atom_ >> 8) & 0x00000FFF) as u16
+    }
+
+    // applicable to CODE_VL_PTR.
+    pub fn asCastOpcode(&self) -> u16 {
+        ((self.atom_ & 0x00FFF000) >> 12) as u16
+    }
+
+    // applicable to nodes and devices.
+    pub fn getNodeID(&self) -> u8 {
+        ((self.atom_ & 0x00FF0000) >> 16) as u8
+    }
+
+    // applicable to devices.
+    pub fn getClassID(&self) -> u8 {
+        ((self.atom_ & 0x0000FF00) >> 8) as u8
+    }
+
+    // applicable to devices.
+    pub fn getDeviceID(&self) -> u8 {
+        (self.atom_ & 0x000000FF) as u8
+    }
+
+    pub fn asAssignmentIndex(&self) -> u8 {
+        ((self.atom_ & 0x00FF0000) >> 16) as u8
+    }
+
+    // arity of operators and objects/markers/structured sets, number of atoms in pointers chains,
+    // number of blocks of characters in strings.
+    pub fn getAtomCount(&self) -> u8 {
+        match self.getDescriptor() {
+            SET
+            | OBJECT
+            | MARKER
+            | C_PTR
+            | OPERATOR
+            | INSTANTIATED_PROGRAM
+            | INSTANTIATED_CPP_PROGRAM
+            | INSTANTIATED_INPUT_LESS_PROGRAM
+            | INSTANTIATED_ANTI_PROGRAM
+            | COMPOSITE_STATE
+            | MODEL
+            | GROUP
+            | S_SET => (self.atom_ & 0x000000FF) as u8,
+            STRING => ((self.atom_ & 0x0000FF00) >> 8) as u8,
+            TIMESTAMP => 2,
+            _ => 0,
+        }
+    }
+
+    // applicable to NULL_PROGRAM.
+    pub fn takesPastInputs(&self) -> bool {
+        if self.atom_ & 0x00000001 != 0 { true } else { false }
+    }
+
+    // asRawPointer is not used. See RawPointer above.
+}
+
+impl Default for Atom {
+    fn default() -> Self {
+        Atom { atom_: 0xFFFFFFFF }
+    }
+}
+
