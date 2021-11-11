@@ -1,3 +1,6 @@
+use std::ops::{Add, Sub};
+use super::UTimestamp;
+
 pub struct UDuration {
     useconds_: i64,
 }
@@ -25,6 +28,30 @@ impl UDuration {
 
     pub fn as_hours(&self) -> i64 {
         self.useconds_ / (1000000 * 3600)
+    }
+}
+
+impl Add<UDuration> for UDuration {
+    type Output = UDuration;
+
+    fn add(self, other: UDuration) -> UDuration {
+        Self::new(self.useconds_ + other.useconds_)
+    }
+}
+
+impl Add<UTimestamp> for UDuration {
+    type Output = UTimestamp;
+
+    fn add(self, other: UTimestamp) -> UTimestamp {
+        other + self
+    }
+}
+
+impl Sub<UDuration> for UDuration {
+    type Output = UDuration;
+
+    fn sub(self, other: UDuration) -> UDuration {
+        Self::new(self.useconds_ - other.useconds_)
     }
 }
 
