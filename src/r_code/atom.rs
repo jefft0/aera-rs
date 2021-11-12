@@ -1,7 +1,7 @@
 use std::io::Write;
 //use std::collections::HashMap;
 use crate::core::u_duration::microseconds;
-use crate::core::u_timestamp::from_duration;
+use crate::core::UTimestamp;
 
 /**
  * atom::TraceContext holds the indentation level and other context info
@@ -438,7 +438,7 @@ impl Atom {
             }
             else {
                 // Imitate utils::get_timestamp.
-                let timestamp = from_duration(
+                let timestamp = UTimestamp::from_duration(
                     microseconds(context.timestamp_high_ << 32 | self.atom_ as i64));
                 write!(out, " {}", super::utils::relative_time(timestamp)).unwrap();
             }
