@@ -1,5 +1,6 @@
 use std::io::Write;
-//use std::collections::HashMap;
+use std::collections::HashMap;
+use once_cell::sync::OnceCell;
 use super::Utils;
 use crate::core::u_duration::microseconds;
 use crate::core::UTimestamp;
@@ -582,7 +583,27 @@ impl Default for Atom {
     }
 }
 
-fn get_opcode_name(_opcode: u16) -> String {
-    // TODO: Implement.
-    String::from("unknown")
+/**
+ * Set the map of opcode names used by get_opcode_name.
+ * \param opcode_names The map where the key is the opcode id and the value is a set of names.
+ * This copies the map.
+ * \return True for success, false if the opcode names have already been set.
+ */
+ pub fn set_opcode_names(opcode_names: &HashMap<u16, String>) -> bool {
+    match OPCODE_NAMES.set(opcode_names.clone()) {
+        Ok(_) => true,
+        Err(_) => false,
+    }
 }
+
+fn get_opcode_name(opcode: u16) -> String {
+    if let Some(name) = OPCODE_NAMES.get().unwrap().get(&opcode) {
+        // Debug: Should return &'static String. Maybe wait for standard support for OnceCell.
+        String::from(name.as_str())
+    }
+    else {
+        String::from("unknown")
+    }
+}
+
+static OPCODE_NAMES: OnceCell<HashMap<u16, String>> = OnceCell::new();
