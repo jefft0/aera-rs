@@ -1,5 +1,6 @@
 use std::io::Write;
 //use std::collections::HashMap;
+use super::Utils;
 use crate::core::u_duration::microseconds;
 use crate::core::UTimestamp;
 
@@ -440,7 +441,7 @@ impl Atom {
                 // Imitate utils::get_timestamp.
                 let timestamp = UTimestamp::from_duration(
                     microseconds(context.timestamp_high_ << 32 | self.atom_ as i64));
-                write!(out, " {}", super::utils::relative_time(timestamp)).unwrap();
+                write!(out, " {}", Utils::relative_time(timestamp)).unwrap();
             }
             return;
         }
