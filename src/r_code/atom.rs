@@ -437,12 +437,10 @@ impl Atom {
                 context.timestamp_high_ = self.atom_ as i64;
             }
             else {
-                // Imitate Utils::GetTimestamp.
+                // Imitate utils::get_timestamp.
                 let timestamp = from_duration(
                     microseconds(context.timestamp_high_ << 32 | self.atom_ as i64));
-                /* TODO: Implement
-                out << " " << Utils::RelativeTime(timestamp);
-                */
+                write!(out, " {}", super::utils::relative_time(timestamp)).unwrap();
             }
             return;
         }
@@ -478,7 +476,7 @@ impl Atom {
                 out, "did: {} {} {}", self.getNodeID(), self.getClassID(),
                 self.getDeviceID()).unwrap(),
             DEVICE_FUNCTION => write!(
-                out, "fid: {} ({})", self.asOpcode(), GetOpcodeName(self.asOpcode())).unwrap(),
+                out, "fid: {} ({})", self.asOpcode(), get_opcode_name(self.asOpcode())).unwrap(),
             C_PTR => {
                 write!(out, "cptr: {}", self.getAtomCount()).unwrap();
                 context.members_to_go_ = self.getAtomCount();
@@ -489,25 +487,25 @@ impl Atom {
             },
             OBJECT => {
                 write!(
-                    out, "obj: {} ({}) {}", self.asOpcode(), GetOpcodeName(self.asOpcode()),
+                    out, "obj: {} ({}) {}", self.asOpcode(), get_opcode_name(self.asOpcode()),
                     self.getAtomCount()).unwrap();
                 context.members_to_go_ = self.getAtomCount();
             },
             S_SET => {
                 write!(
-                    out, "s_set: {} ({}) {}", self.asOpcode(), GetOpcodeName(self.asOpcode()),
+                    out, "s_set: {} ({}) {}", self.asOpcode(), get_opcode_name(self.asOpcode()),
                     self.getAtomCount()).unwrap();
                     context.members_to_go_ = self.getAtomCount();
             },
             MARKER => {
                 write!(
-                    out, "mk: {} ({}) {}", self.asOpcode(), GetOpcodeName(self.asOpcode()), 
+                    out, "mk: {} ({}) {}", self.asOpcode(), get_opcode_name(self.asOpcode()), 
                     self.getAtomCount()).unwrap();
                 context.members_to_go_ = self.getAtomCount();
             },
             OPERATOR => {
                 write!(
-                    out, "op: {} ({}) {}", self.asOpcode(), GetOpcodeName(self.asOpcode()),
+                    out, "op: {} ({}) {}", self.asOpcode(), get_opcode_name(self.asOpcode()),
                     self.getAtomCount()).unwrap();
                 context.members_to_go_ = self.getAtomCount();
             },
@@ -524,7 +522,7 @@ impl Atom {
             },
             GROUP => {
                 write!(
-                    out, "grp: {} ({}) {}", self.asOpcode(), GetOpcodeName(self.asOpcode()),
+                    out, "grp: {} ({}) {}", self.asOpcode(), get_opcode_name(self.asOpcode()),
                     self.getAtomCount()).unwrap();
                 context.members_to_go_ = self.getAtomCount();
             },
@@ -532,19 +530,19 @@ impl Atom {
             | INSTANTIATED_ANTI_PROGRAM
             | INSTANTIATED_INPUT_LESS_PROGRAM => {
                 write!(
-                    out, "ipgm: {} ({}) {}", self.asOpcode(), GetOpcodeName(self.asOpcode()),
+                    out, "ipgm: {} ({}) {}", self.asOpcode(), get_opcode_name(self.asOpcode()),
                     self.getAtomCount()).unwrap();
                 context.members_to_go_ = self.getAtomCount();
             },
             COMPOSITE_STATE => {
                 write!(
-                    out, "cst: {} ({}) {}", self.asOpcode(), GetOpcodeName(self.asOpcode()),
+                    out, "cst: {} ({}) {}", self.asOpcode(), get_opcode_name(self.asOpcode()),
                     self.getAtomCount()).unwrap();
                 context.members_to_go_ = self.getAtomCount();
             },
             MODEL => {
                 write!(
-                    out, "mdl: {} ({}) {}", self.asOpcode(), GetOpcodeName(self.asOpcode()),
+                    out, "mdl: {} ({}) {}", self.asOpcode(), get_opcode_name(self.asOpcode()),
                     self.getAtomCount()).unwrap();
                 context.members_to_go_ = self.getAtomCount();
             },
@@ -568,9 +566,9 @@ impl Atom {
                     }
                     out.write_all(s.as_bytes()).unwrap();
                 } else if self.isFloat() {
-                    write!(out, "nb: {:e}", self.asFloat()).unwrap();
+                    write!(out, "nb: {:.6e}", self.asFloat()).unwrap();
                 } else {
-                    out.write_all("undef".as_bytes()).unwrap();
+                    out.write_all(b"undef").unwrap();
                 }
             }
         }
@@ -583,8 +581,7 @@ impl Default for Atom {
     }
 }
 
-#[allow(non_snake_case)]
-fn GetOpcodeName(_opcode: u16) -> String {
+fn get_opcode_name(_opcode: u16) -> String {
     // TODO: Implement.
-    String::new()
+    String::from("unknown")
 }
