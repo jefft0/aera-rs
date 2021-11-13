@@ -426,7 +426,6 @@ impl Atom {
     // asRawPointer is not used. See RawPointer above.
 
     pub fn trace(&self, context: &mut TraceContext, out: &mut impl Write) {
-
         context.write_indents(out);
         if context.timestamp_data_ != 0 {
             // Output the timestamp value now. Otherwise, it could be interpreted
