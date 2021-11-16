@@ -1,6 +1,7 @@
 use std::ops::{Add, Sub};
 use super::UTimestamp;
 
+#[derive(Default)]
 pub struct UDuration {
     useconds_: i64,
 }

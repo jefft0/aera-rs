@@ -2,6 +2,7 @@ use std::ops::{Add, Sub};
 use super::UDuration;
 use super::u_duration::microseconds;
 
+#[derive(Default)]
 pub struct UTimestamp {
     useconds_: i64,
 }
