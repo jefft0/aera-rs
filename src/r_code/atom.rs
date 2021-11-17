@@ -11,7 +11,7 @@ use crate::core::UTimestamp;
  * different indentation levels or other details), create an
  * atom::TraceContext and pass it to Atom::trace.
  */
- #[derive(Default)]
+#[derive(Default)]
 pub struct TraceContext {
     pub members_to_go_: u8,
     pub timestamp_data_: u8,
