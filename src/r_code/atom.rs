@@ -68,6 +68,7 @@ pub const COMPOSITE_STATE: u8 = 0xCD;
 pub const MODEL: u8 = 0xCE;
 pub const NULL_PROGRAM: u8 = 0xCF;
 
+#[derive(Copy, Clone)]
 pub struct Atom {
     pub atom_: u32,
 }
