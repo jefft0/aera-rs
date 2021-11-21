@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::fmt::Write;
 use std::collections::HashMap;
 use once_cell::sync::OnceCell;
 use super::Utils;
@@ -23,7 +23,7 @@ pub struct TraceContext {
 impl TraceContext {
     pub fn write_indents(&mut self, out: &mut impl Write) {
         if self.members_to_go_ != 0 {
-            out.write_all(b"   ").unwrap();
+            write!(out, "   ").unwrap();
             self.members_to_go_ -= 1;
         }
     }
@@ -437,13 +437,13 @@ impl Atom {
         }
       
         match self.getDescriptor() {
-            NIL => out.write_all(b"nil").unwrap(),
+            NIL => write!(out, "nil").unwrap(),
             BOOLEAN_ => {
-                out.write_all(b"bl: ").unwrap();
-                out.write_all(if self.asBoolean() { b"true" } else { b"false" }).unwrap();
+                write!(out, "bl: ").unwrap();
+                write!(out, "{}", if self.asBoolean() { "true" } else { "false" }).unwrap();
             },
-            WILDCARD => out.write_all(b":").unwrap(),
-            T_WILDCARD => out.write_all(b"::").unwrap(),
+            WILDCARD => write!(out, ":").unwrap(),
+            T_WILDCARD => write!(out, "::").unwrap(),
             I_PTR => write!(out, "iptr: {}", self.asIndex()).unwrap(),
             VL_PTR => write!(out, "vlptr: {}", self.asIndex()).unwrap(),
             R_PTR => write!(out, "rptr: {}", self.asIndex()).unwrap(),
@@ -458,10 +458,10 @@ impl Atom {
             ASSIGN_PTR => write!(
                 out, "assign_ptr: {} {}", self.asAssignmentIndex(), self.asIndex()).unwrap(),
             CODE_VL_PTR => write!(out, "code_vlptr: {}", self.asIndex()).unwrap(),
-            THIS => out.write_all(b"this").unwrap(),
-            VIEW => out.write_all(b"view").unwrap(),
-            MKS => out.write_all(b"mks").unwrap(),
-            VWS => out.write_all(b"vws").unwrap(),
+            THIS => write!(out, "this").unwrap(),
+            VIEW => write!(out, "view").unwrap(),
+            MKS => write!(out, "mks").unwrap(),
+            VWS => write!(out, "vws").unwrap(),
             NODE => write!(out, "nid: {}", self.getNodeID()).unwrap(),
             DEVICE => write!(
                 out, "did: {} {} {}", self.getNodeID(), self.getClassID(),
@@ -507,7 +507,7 @@ impl Atom {
                 context.char_count_ = (self.atom_ & 0x000000FF) as u8;
             },
             TIMESTAMP => {
-                out.write_all(b"us").unwrap();
+                write!(out, "us").unwrap();
                 context.members_to_go_ = 2;
                 context.timestamp_data_ = context.members_to_go_;
             },
@@ -555,11 +555,11 @@ impl Atom {
                             break;
                         }
                     }
-                    out.write_all(s.as_bytes()).unwrap();
+                    write!(out, "{}", s).unwrap();
                 } else if self.isFloat() {
                     write!(out, "nb: {:.6e}", self.asFloat()).unwrap();
                 } else {
-                    out.write_all(b"undef").unwrap();
+                    write!(out, "undef").unwrap();
                 }
             }
         }
