@@ -67,6 +67,7 @@ pub const INSTANTIATED_ANTI_PROGRAM: u8 = 0xCC;
 pub const COMPOSITE_STATE: u8 = 0xCD;
 pub const MODEL: u8 = 0xCE;
 pub const NULL_PROGRAM: u8 = 0xCF;
+pub const DURATION : u8 = 0xD0;
 
 #[derive(Copy, Clone)]
 pub struct Atom {
@@ -252,6 +253,10 @@ impl Atom {
 
     pub fn UndefinedTimestamp() -> Self {
         Self::new(0xC7FFFFFF)
+    }
+
+    pub fn Duration() -> Self {
+        Self::new((DURATION  as u32) << 24)
     }
 
     pub fn InstantiatedProgram(opcode: u16, arity: u8) -> Self {
