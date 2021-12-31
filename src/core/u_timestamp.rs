@@ -3,6 +3,8 @@ use super::UDuration;
 use super::u_duration::microseconds;
 
 #[derive(Default)]
+#[derive(PartialEq)]
+#[derive(PartialOrd)]
 pub struct UTimestamp {
     useconds_: i64,
 }

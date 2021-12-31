@@ -2,6 +2,8 @@ use std::ops::{Add, Sub};
 use super::UTimestamp;
 
 #[derive(Default)]
+#[derive(PartialEq)]
+#[derive(PartialOrd)]
 pub struct UDuration {
     useconds_: i64,
 }
