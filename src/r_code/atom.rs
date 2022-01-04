@@ -15,9 +15,10 @@ use crate::core::UTimestamp;
 pub struct TraceContext {
     pub members_to_go_: u8,
     pub timestamp_data_: u8,
+    pub duration_data_: u8,
     pub string_data_: u8,
     pub char_count_: u8,
-    pub timestamp_high_: i64, 
+    pub int64_high_: i64, 
 }
 
 impl TraceContext {
@@ -423,20 +424,36 @@ impl Atom {
     pub fn trace(&self, context: &mut TraceContext, out: &mut impl Write) {
         context.write_indents(out);
         if context.timestamp_data_ != 0 {
-            // Output the timestamp value now. Otherwise, it could be interpreted
-            // as an op code, etc.
+            // Output the timestamp value now. Otherwise, it could be interpreted as an
+            // op code, etc.
             context.timestamp_data_ -= 1;
             write!(out, "{}", self.atom_).unwrap();
       
             if context.timestamp_data_ == 1 {
                 // Save for the next step.
-                context.timestamp_high_ = self.atom_ as i64;
+                context.int64_high_ = self.atom_ as i64;
             }
             else {
                 // Imitate utils::get_timestamp.
                 let timestamp = UTimestamp::from_duration(
-                    microseconds(context.timestamp_high_ << 32 | self.atom_ as i64));
+                    microseconds(context.int64_high_ << 32 | self.atom_ as i64));
                 write!(out, " {}", Utils::relative_time(timestamp)).unwrap();
+            }
+            return;
+        }
+        if context.duration_data_ != 0 {
+            //Output the duration value now. Otherwise, it could be interpreted as an op code, etc.
+            context.duration_data_ -= 1;
+            write!(out, "{}", self.atom_).unwrap();
+      
+            if context.duration_data_ == 1 {
+                // Save for the next step.
+                context.int64_high_ = self.atom_ as i64;
+            }
+            else {
+                // Imitate utils::get_duration.
+                let duration = microseconds(context.int64_high_ << 32 | self.atom_ as i64);
+                write!(out, " {}", Utils::to_string_us(duration)).unwrap();
             }
             return;
         }
@@ -512,9 +529,14 @@ impl Atom {
                 context.char_count_ = (self.atom_ & 0x000000FF) as u8;
             },
             TIMESTAMP => {
-                write!(out, "us").unwrap();
+                write!(out, "ts").unwrap();
                 context.members_to_go_ = 2;
                 context.timestamp_data_ = context.members_to_go_;
+            },
+            DURATION => {
+                write!(out, "us").unwrap();
+                context.members_to_go_ = 2;
+                context.duration_data_ = context.members_to_go_;
             },
             GROUP => {
                 write!(
